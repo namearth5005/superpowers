@@ -33,7 +33,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 ```markdown
 # [Feature Name] Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans, superpowers:subagent-driven-development, or superpowers:team-driven-development to implement this plan.
 
 **Goal:** [One sentence describing what this builds]
 
@@ -98,11 +98,13 @@ git commit -m "feat: add specific feature"
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `docs/plans/<filename>.md`. Two execution options:**
+**"Plan complete and saved to `docs/plans/<filename>.md`. Three execution options:**
 
-**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
+**1. Subagent-Driven (sequential, this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
 
-**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
+**2. Team-Driven (parallel, this session)** - I create a team with parallel workstreams, teammates work concurrently with review coordination
+
+**3. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
 
 **Which approach?"**
 
@@ -110,6 +112,11 @@ After saving the plan, offer execution choice:
 - **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
 - Stay in this session
 - Fresh subagent per task + code review
+
+**If Team-Driven chosen:**
+- **REQUIRED SUB-SKILL:** Use superpowers:team-driven-development
+- Stay in this session
+- Analyze plan for workstreams, create team, distribute tasks
 
 **If Parallel Session chosen:**
 - Guide them to open new session in worktree
