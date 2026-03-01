@@ -116,16 +116,18 @@ digraph process {
 
 ## Team Setup
 
-1. **TeamCreate** with a descriptive name (e.g., `"feature-auth"`)
-2. **Spawn teammates** — one per workstream, max 4, using `./teammate-prompt.md`
+1. **Pre-tasks first** — install shared dependencies, add shared types, any setup work
+   - <HARD-GATE>**COMMIT all pre-task changes before spawning teammates.** Worktrees fork from HEAD — uncommitted changes will NOT be visible to teammates. This is the #1 cause of teammate confusion.</HARD-GATE>
+2. **TeamCreate** with a descriptive name (e.g., `"feature-auth"`)
+3. **Spawn teammates** — one per workstream, max 4, using `./teammate-prompt.md`
    - Each teammate is `general-purpose` subagent type
    - Each teammate gets: architectural context + their workstream scope
-   - Each teammate uses `EnterWorktree` for git isolation
-3. **TaskCreate** for every task from the plan
+   - **Use `isolation: "worktree"` on the Agent tool** to give each teammate a separate git worktree. This prevents teammates from committing to the same branch.
+4. **TaskCreate** for every task from the plan
    - Include full task text in `description` (don't make teammates read plan file)
    - Set `blockedBy` for intra-workstream dependencies
    - Set `activeForm` for progress visibility
-4. **TaskUpdate** to assign `owner` based on workstream → teammate mapping
+5. **TaskUpdate** to assign `owner` based on workstream → teammate mapping
 
 ## Team Lead Role
 
@@ -142,12 +144,14 @@ digraph process {
 
 Same two-stage review as subagent-driven-development. Reviews are lightweight subagents, NOT teammates.
 
-1. Teammate completes task → sends completion message via SendMessage
+1. Teammate completes task → sends completion message via SendMessage → **teammate STOPS and waits**
 2. **Spec compliance review** — dispatch subagent using `subagent-driven-development/spec-reviewer-prompt.md`
+   - **IMPORTANT:** Pass the teammate's worktree path to the reviewer, NOT the main repo path. Teammates work in isolated worktrees — the main repo won't have their changes.
 3. If spec fails → SendMessage to teammate with specific issues → teammate fixes → re-review
 4. **Code quality review** — dispatch subagent using `subagent-driven-development/code-quality-reviewer-prompt.md`
+   - Same worktree path rule applies.
 5. If quality fails → SendMessage to teammate with issues → teammate fixes → re-review
-6. Both pass → task confirmed complete
+6. Both pass → SendMessage to teammate: "Task approved, proceed to next" → task confirmed complete
 
 Reviews for different workstreams can happen in parallel.
 
@@ -175,9 +179,11 @@ Reviews for different workstreams can happen in parallel.
 - Proceed past review failures
 
 **Always:**
+- Commit all pre-tasks before spawning teammates
 - Analyze plan for parallelism before creating team
 - One teammate per workstream
-- Each teammate uses worktree for isolation
+- Use `isolation: "worktree"` when spawning teammates (separate worktree per teammate)
+- Pass worktree paths (not main repo path) to review subagents
 - Two-stage review (spec then quality) for every completed task
 - Shut down teammates when done
 
