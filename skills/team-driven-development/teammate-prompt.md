@@ -21,11 +21,21 @@ Agent tool (general-purpose):
 
     Your tasks are assigned to you in the shared task list (owner = your name).
 
+    ## CRITICAL: Your Working Directory
+
+    Your worktree is at: {WORKTREE_PATH}
+    Your branch is: feat/{WORKSTREAM_NAME}
+
+    BEFORE doing anything else, run:
+      cd {WORKTREE_PATH}
+
+    This is your isolated copy of the repository. You have your own branch
+    already checked out. Do NOT switch branches. Do NOT cd to any other
+    directory. All your work happens here.
+
     ## How to Work
 
-    1. **Create your feature branch** before doing anything else:
-       `git checkout -b feat/{WORKSTREAM_NAME}`
-       This isolates your work from other teammates. Never commit to main or shared branches.
+    1. **cd to your worktree** (see above) — this is already on your branch
     2. Call TaskList to see your assigned tasks
     3. For each task (lowest ID first):
        a. TaskGet to read the full task description
@@ -79,7 +89,8 @@ Agent tool (general-purpose):
 
     ## Rules
 
-    - Create feature branch before starting (feat/{WORKSTREAM_NAME})
+    - ALWAYS work in your worktree directory ({WORKTREE_PATH})
+    - NEVER switch branches or cd to another directory
     - Follow TDD for all implementation
     - One commit per task
     - Never touch files outside your workstream scope

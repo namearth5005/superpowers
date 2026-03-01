@@ -69,6 +69,7 @@ digraph process {
 
     subgraph cluster_setup {
         label="Team Setup";
+        "Create git worktree per workstream (git worktree add)" [shape=box];
         "TeamCreate with feature name" [shape=box];
         "Spawn 1 teammate per workstream via Agent (./teammate-prompt.md)" [shape=box];
         "TaskCreate per task with full text in description" [shape=box];
@@ -93,7 +94,8 @@ digraph process {
 
     "Read plan, detect workstreams (./workstream-detection.md)" -> "2+ independent workstreams?";
     "2+ independent workstreams?" -> "Use superpowers:subagent-driven-development" [label="no"];
-    "2+ independent workstreams?" -> "TeamCreate with feature name" [label="yes"];
+    "2+ independent workstreams?" -> "Create git worktree per workstream (git worktree add)" [label="yes"];
+    "Create git worktree per workstream (git worktree add)" -> "TeamCreate with feature name";
     "TeamCreate with feature name" -> "Spawn 1 teammate per workstream via Agent (./teammate-prompt.md)";
     "Spawn 1 teammate per workstream via Agent (./teammate-prompt.md)" -> "TaskCreate per task with full text in description";
     "TaskCreate per task with full text in description" -> "Set blockedBy for intra-workstream dependencies";
@@ -117,18 +119,28 @@ digraph process {
 ## Team Setup
 
 1. **Pre-tasks first** — install shared dependencies, add shared types, any setup work
-   - <HARD-GATE>**COMMIT all pre-task changes before spawning teammates.** Teammates see the current branch HEAD at spawn time — uncommitted changes will NOT be visible. This is the #1 cause of teammate confusion.</HARD-GATE>
-   - <HARD-GATE>**Commit pre-tasks to the SAME branch teammates will work on.** If you're on a feature branch, commit there. If teammates are spawned from the main repo, commit to main. Pre-tasks on a different branch are invisible to teammates.</HARD-GATE>
-2. **TeamCreate** with a descriptive name (e.g., `"feature-auth"`)
-3. **Spawn teammates** — one per workstream, max 4, using `./teammate-prompt.md`
+   - <HARD-GATE>**COMMIT all pre-task changes before creating worktrees.** Worktrees fork from the current branch HEAD — uncommitted changes will NOT be visible to teammates. This is the #1 cause of teammate confusion.</HARD-GATE>
+2. **Create git worktrees** — one per workstream, BEFORE spawning teammates
+   - <HARD-GATE>**Each teammate MUST have their own git worktree (separate directory).** Teammates sharing the same working directory will have their git operations race and destroy each other's work. This is non-negotiable.</HARD-GATE>
+   - For each workstream, run:
+     ```bash
+     git worktree add .claude/worktrees/{workstream-name} -b feat/{workstream-name}
+     ```
+   - This creates a separate directory with its own branch, forked from the current HEAD (which includes pre-task commits)
+   - Example: `git worktree add .claude/worktrees/auth-backend -b feat/auth-backend`
+   - Each worktree gets its own branch automatically — no checkout races
+3. **TeamCreate** with a descriptive name (e.g., `"feature-auth"`)
+4. **Spawn teammates** — one per workstream, max 4, using `./teammate-prompt.md`
    - Each teammate is `general-purpose` subagent type
-   - Each teammate gets: architectural context + their workstream scope
-   - **Each teammate creates their own feature branch** (e.g., `feat/email-backend`) at the start of their first task. This prevents teammates from committing to the same branch. Do NOT use `isolation: "worktree"` — it does not create separate worktrees for team members.
-4. **TaskCreate** for every task from the plan
+   - Each teammate gets: architectural context + their workstream scope + **their worktree path**
+   - In the teammate prompt, set the working directory to the worktree: include `cd {worktree-path}` as the FIRST instruction
+   - Do NOT use `isolation: "worktree"` on the Agent tool — it does not create separate worktrees for team members
+   - Do NOT tell teammates to create their own branches — the worktree already has one
+5. **TaskCreate** for every task from the plan
    - Include full task text in `description` (don't make teammates read plan file)
    - Set `blockedBy` for intra-workstream dependencies
    - Set `activeForm` for progress visibility
-5. **TaskUpdate** to assign `owner` based on workstream → teammate mapping
+6. **TaskUpdate** to assign `owner` based on workstream → teammate mapping
 
 ## Team Lead Role
 
@@ -147,10 +159,10 @@ Same two-stage review as subagent-driven-development. Reviews are lightweight su
 
 1. Teammate completes task → sends completion message via SendMessage → **teammate STOPS and waits**
 2. **Spec compliance review** — dispatch subagent using `subagent-driven-development/spec-reviewer-prompt.md`
-   - **IMPORTANT:** The reviewer must checkout the teammate's feature branch before reviewing. Teammates work on separate branches — main won't have their changes.
+   - **IMPORTANT:** The reviewer must work in the teammate's worktree directory (e.g., `.claude/worktrees/auth-backend`). Pass the worktree path to the reviewer subagent so it reads the correct files.
 3. If spec fails → SendMessage to teammate with specific issues → teammate fixes → re-review
 4. **Code quality review** — dispatch subagent using `subagent-driven-development/code-quality-reviewer-prompt.md`
-   - Same branch checkout rule applies.
+   - Same worktree path rule applies.
 5. If quality fails → SendMessage to teammate with issues → teammate fixes → re-review
 6. Both pass → SendMessage to teammate: "Task approved, proceed to next" → task confirmed complete
 
@@ -161,10 +173,19 @@ Reviews for different workstreams can happen in parallel.
 ## Completion
 
 1. All tasks marked complete and reviewed
-2. Dispatch final cross-workstream code reviewer (entire diff)
-3. **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-4. SendMessage `type: "shutdown_request"` to all teammates
-5. Wait for shutdown confirmations
+2. SendMessage `type: "shutdown_request"` to all teammates
+3. Wait for shutdown confirmations
+4. **Merge worktree branches** — for each worktree:
+   ```bash
+   git checkout {main-branch}
+   git merge feat/{workstream-name} --no-ff
+   ```
+5. **Clean up worktrees**:
+   ```bash
+   git worktree remove .claude/worktrees/{workstream-name}
+   ```
+6. Dispatch final cross-workstream code reviewer (entire diff)
+7. **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
 
 ## Red Flags
 
@@ -180,13 +201,13 @@ Reviews for different workstreams can happen in parallel.
 - Proceed past review failures
 
 **Always:**
-- Commit all pre-tasks before spawning teammates
+- Commit all pre-tasks before creating worktrees
+- Create one git worktree per workstream BEFORE spawning teammates (`git worktree add`)
 - Analyze plan for parallelism before creating team
-- One teammate per workstream
-- Each teammate creates their own feature branch (do NOT use `isolation: "worktree"` — it doesn't work for team members)
-- Review subagents check the teammate's feature branch (checkout the branch before reviewing)
+- One teammate per workstream, each in their own worktree directory
+- Review subagents work in the teammate's worktree directory (pass the path)
 - Two-stage review (spec then quality) for every completed task
-- Shut down teammates when done
+- Shut down teammates, merge branches, clean up worktrees when done
 
 ## Rationalization Prevention
 
