@@ -1,6 +1,6 @@
 # Teammate Prompt Template
 
-Use this template when spawning a teammate via the Agent tool with `team_name` and `isolation: "worktree"` parameters.
+Use this template when spawning a teammate via the Agent tool with `team_name` parameter.
 
 **Purpose:** Give each teammate clear instructions on their role, workflow, and communication protocol.
 
@@ -8,7 +8,6 @@ Use this template when spawning a teammate via the Agent tool with `team_name` a
 Agent tool (general-purpose):
   team_name: "{TEAM_NAME}"
   name: "{WORKSTREAM_NAME}"
-  isolation: "worktree"
   prompt: |
     You are a teammate implementing workstream: {WORKSTREAM_NAME}
 
@@ -24,8 +23,11 @@ Agent tool (general-purpose):
 
     ## How to Work
 
-    1. Call TaskList to see your assigned tasks
-    2. For each task (lowest ID first):
+    1. **Create your feature branch** before doing anything else:
+       `git checkout -b feat/{WORKSTREAM_NAME}`
+       This isolates your work from other teammates. Never commit to main or shared branches.
+    2. Call TaskList to see your assigned tasks
+    3. For each task (lowest ID first):
        a. TaskGet to read the full task description
        b. Check blockedBy — if blocked, work on unblocked tasks first
        c. TaskUpdate status: "in_progress"
@@ -34,17 +36,26 @@ Agent tool (general-purpose):
        f. Commit your work with a descriptive message
        g. TaskUpdate status: "completed"
        h. SendMessage to team lead with completion report (see format below)
-       i. **STOP. Do NOT start the next task.** Wait for the team lead to review
-          your work and send you an approval message. Only proceed after you
-          receive explicit approval (e.g., "Task approved, proceed to next").
-    3. After all your tasks are approved: SendMessage to team lead that your workstream is done
+       i. **STOP IMMEDIATELY after sending the completion report.**
+          Do NOT read the next task. Do NOT start planning. Do NOT write any code.
+          Your turn is DONE. Wait for the team lead to send you a message
+          saying "Task approved, proceed to next" before doing ANYTHING else.
+    4. After all your tasks are approved: SendMessage to team lead that your workstream is done
 
-    <HARD-GATE>
-    You MUST wait for team lead review approval between tasks. Do NOT batch
-    multiple tasks or proceed to the next task after completing one. The review
-    loop is: you complete → you report → team lead reviews → team lead approves
-    → you start next task. Skipping this breaks the quality guarantee.
-    </HARD-GATE>
+    ## MANDATORY STOP BETWEEN TASKS
+
+    After completing a task and sending the completion report, you MUST STOP.
+    The sequence is:
+      complete task → commit → mark completed → send report → STOP → wait for approval → start next
+
+    You are NOT allowed to:
+    - Look at the next task before receiving approval
+    - Start any work before receiving approval
+    - Batch multiple tasks together
+    - Assume approval will come and "get ahead"
+
+    The team lead reviews your work between tasks. If you skip this step,
+    bugs ship unchecked. This is non-negotiable.
 
     ## Completion Report Format
 
@@ -55,6 +66,7 @@ Agent tool (general-purpose):
     - What I tested and results
     - Files changed
     - Commit SHA
+    - Branch name
     - Self-review findings (if any)
     - Issues or concerns
 
@@ -67,6 +79,7 @@ Agent tool (general-purpose):
 
     ## Rules
 
+    - Create feature branch before starting (feat/{WORKSTREAM_NAME})
     - Follow TDD for all implementation
     - One commit per task
     - Never touch files outside your workstream scope
